@@ -1,0 +1,160 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  WAITER
+  KITCHEN
+  CASHIER
+  MANAGER
+}
+
+enum OrderStatus {
+  OPEN
+  BILL_REQUESTED
+  PAID
+  VOIDED
+}
+
+enum ItemStatus {
+  PENDING
+  PREPARING
+  READY
+  SERVED
+  CANCELLED
+}
+
+enum PaymentMethod {
+  POS_CARD
+  CARD_TO_CARD
+  CASH
+}
+
+model Restaurant {
+  id         String         @id @default(cuid())
+  name       String
+  createdAt  DateTime       @default(now())
+  branches   Branch[]
+  categories MenuCategory[]
+  items      MenuItem[]
+  users      User[]
+  orders     Order[]
+}
+
+model Branch {
+  id           String     @id @default(cuid())
+  restaurantId String
+  name         String
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  tables       Table[]
+  orders       Order[]
+  users        User[]
+
+  @@unique([restaurantId, name])
+}
+
+model User {
+  id           String       @id @default(cuid())
+  restaurantId String
+  branchId     String?
+  name         String
+  staffCode    String
+  pinHash      String
+  role         Role
+  restaurant   Restaurant   @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  branch       Branch?      @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  ordersOpened Order[]      @relation("OpenedOrders")
+  events       OrderEvent[]
+
+  @@unique([restaurantId, staffCode])
+}
+
+model MenuCategory {
+  id           String     @id @default(cuid())
+  restaurantId String
+  nameFa       String
+  nameEn       String
+  sort         Int        @default(0)
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  items        MenuItem[]
+}
+
+model MenuItem {
+  id           String       @id @default(cuid())
+  restaurantId String
+  categoryId   String
+  nameFa       String
+  nameEn       String
+  priceToman   Int
+  available    Boolean      @default(true)
+  restaurant   Restaurant   @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  category     MenuCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  orderItems   OrderItem[]
+}
+
+model Table {
+  id       String  @id @default(cuid())
+  branchId String
+  label    String
+  seats    Int
+  branch   Branch  @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  orders   Order[]
+
+  @@unique([branchId, label])
+}
+
+model Order {
+  id             String         @id @default(cuid())
+  restaurantId   String
+  branchId       String
+  tableId        String
+  status         OrderStatus    @default(OPEN)
+  version        Int            @default(0)
+  discountToman  Int            @default(0)
+  discountReason String?
+  paymentMethod  PaymentMethod?
+  paidAt         DateTime?
+  closedAt       DateTime?
+  openedById     String
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  restaurant     Restaurant     @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  branch         Branch         @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  table          Table          @relation(fields: [tableId], references: [id], onDelete: Restrict)
+  openedBy       User           @relation("OpenedOrders", fields: [openedById], references: [id], onDelete: Restrict)
+  items          OrderItem[]
+  events         OrderEvent[]
+}
+
+model OrderItem {
+  id         String     @id @default(cuid())
+  orderId    String
+  menuItemId String?
+  nameFa     String
+  nameEn     String
+  priceToman Int
+  qty        Int        @default(1)
+  status     ItemStatus @default(PENDING)
+  note       String?
+  version    Int        @default(0)
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+  order      Order      @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  menuItem   MenuItem?  @relation(fields: [menuItemId], references: [id], onDelete: SetNull)
+}
+
+model OrderEvent {
+  id        String   @id @default(cuid())
+  orderId   String
+  actorId   String
+  type      String
+  detail    String?
+  createdAt DateTime @default(now())
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  actor     User     @relation(fields: [actorId], references: [id], onDelete: Restrict)
+}
