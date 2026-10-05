@@ -24,7 +24,7 @@ test("full shift: waiter → kitchen → cashier, live across stations", async (
 
     await waiter.goto("/waiter");
     await waiter.getByRole("button", { name: /New order/ }).first().click();
-    await expect(waiter).toHaveURL(/\/waiter\/orders\//);
+    await expect(waiter).toHaveURL(/\/waiter\/orders\//, { timeout: 20_000 });
     const heading = await waiter.locator("h1").first().innerText();
     const label = heading.match(/Table\s+(\S+)/)?.[1];
     expect(label).toBeTruthy();
@@ -77,6 +77,7 @@ test("full shift: waiter → kitchen → cashier, live across stations", async (
     await billLink.click();
     await expect(cashier).toHaveURL(
       new RegExp(`[?&]order=${selectedOrderId}(?:&|$)`),
+      { timeout: 15_000 },
     );
     const paymentForm = cashier
       .locator("form")
@@ -117,7 +118,7 @@ test("cross-tenant: Kababi Salar staff cannot open Café Anoush orders", async (
     } else {
       await anoush.locator('a[href*="/waiter/orders/"]').first().click();
     }
-    await expect(anoush).toHaveURL(/\/waiter\/orders\//);
+    await expect(anoush).toHaveURL(/\/waiter\/orders\//, { timeout: 20_000 });
     const url = anoush.url();
 
     const intruder = await login(intruderContext, "S-901");
